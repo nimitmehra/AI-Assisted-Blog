@@ -1,70 +1,38 @@
-# Getting Started with Create React App
+<h1 align="center">AI-Assisted-Blog</h1>
+<p align="center"><i>Personal journaling / blog-drafting app — all in the browser, built with React 19.</i></p>
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+---
 
-## Available Scripts
+## ✨ What’s implemented right now
+| Area | Details |
+|------|---------|
+| **Dashboard** | • Lists all posts with search box and **status filters** (All / Published / Draft) • Sorts by last-updated date • Shows word-count, tags and privacy badge (public 🔓 or private 🔒) :contentReference[oaicite:0]{index=0} |
+| **Rich-text Editor** | • Inline toolbar for **bold / italic / underline / lists / quotes / alignment** • Insert **links** and **images** (PNG/JPG) • Resize images (25 % → 100 %) • Live **word + character** counter :contentReference[oaicite:1]{index=1} |
+| **Save logic** | • “Save draft” keeps the post private and tagged *draft* • “Publish” flips status to *published* and (optionally) public • Autosets timestamps and word-counts on every save :contentReference[oaicite:2]{index=2} |
+| **Global state** | Managed inside `AppOrchestrator` with React hooks — no backend yet; data resets on refresh. :contentReference[oaicite:3]{index=3} |
+| **Utilities** | Shared helpers for stripping HTML, word-counting, date formatting, simple ID generation and in-memory search. :contentReference[oaicite:4]{index=4} |
 
-In the project directory, you can run:
+> **Note:** The “AI” part is still a placeholder—the groundwork (editor, dashboard, utils) is here and ready for model integration.
 
-### `npm start`
+---
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## 🏗 Tech stack
+* **React 19** (Create React App scaffold) :contentReference[oaicite:5]{index=5}  
+* **lucide-react** icons  
+* **Jest + @testing-library** (testing setup scaffolded)  
+* No database / server yet — everything runs client-side.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## 🚀 Getting started
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+# 1. Clone
+git clone https://github.com/nimitmehra/AI-Assisted-Blog.git
+cd AI-Assisted-Blog
 
-### `npm run build`
+# 2. Install deps
+npm install            # or yarn
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+# 3. Run in dev mode
+npm start              # opens http://localhost:3000
