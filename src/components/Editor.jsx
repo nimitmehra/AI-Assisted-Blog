@@ -448,7 +448,8 @@ const Editor = ({
           justifyContent: 'center', 
           zIndex: 50 
         }}>
-          <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', width: '24rem', maxWidth: '90vw', margin: '1rem' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', margin: '1rem', maxWidth: '400px', width: '90%'}}>
+
             <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', margin: 0 }}>Add Link</h3>
             
             <div style={{ marginBottom: '1rem' }}>

@@ -163,7 +163,8 @@ const Dashboard = ({ posts = [], onEditPost, onNewPost }) => {
                       </span>
                     </div>
 
-                    <p style={{ color: '#6b7280', marginBottom: '0.75rem', margin: 0 }}>
+                    <p style={{ color: '#6b7280', marginBottom: '0.75rem', marginRight: '1rem', textAlign: 'left'}}>
+
                       {stripHtmlTags(post.content).substring(0, 150)}...
                     </p>
 
