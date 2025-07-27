@@ -26,6 +26,17 @@ const Editor = ({
   const [showImageSizeModal, setShowImageSizeModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   
+  // Active formatting state
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    justifyLeft: false,
+    justifyCenter: false,
+    justifyRight: false,
+    justifyFull: false
+  });
+  
   // Refs
   const contentRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -59,11 +70,41 @@ const Editor = ({
     setHasUnsavedChanges(true);
   };
 
+  // Update active formatting states
+  const updateActiveFormats = () => {
+    if (!contentRef.current) return;
+    
+    setActiveFormats({
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+      underline: document.queryCommandState('underline'),
+      justifyLeft: document.queryCommandState('justifyLeft'),
+      justifyCenter: document.queryCommandState('justifyCenter'),
+      justifyRight: document.queryCommandState('justifyRight'),
+      justifyFull: document.queryCommandState('justifyFull')
+    });
+  };
+
+  // Get button style based on active state
+  const getButtonStyle = (isActive, baseStyle = {}) => ({
+    ...baseStyle,
+    backgroundColor: isActive ? '#2563eb' : (baseStyle.backgroundColor || 'transparent'),
+    color: isActive ? 'white' : (baseStyle.color || '#374151'),
+    fontWeight: isActive ? '600' : '500',
+    transform: isActive ? 'scale(0.95)' : 'scale(1)',
+    transition: 'all 0.1s ease-in-out',
+    border: 'none',
+    borderRadius: '0.25rem',
+    cursor: 'pointer'
+  });
+
   // Rich text formatting functions
   const formatText = (command, value = null) => {
     document.execCommand(command, false, value);
     contentRef.current?.focus();
     handleContentChange();
+    // Update active formats after formatting
+    setTimeout(updateActiveFormats, 10);
   };
 
   // Text alignment functions
@@ -72,6 +113,8 @@ const Editor = ({
     if (alignment === 'center') formatText('justifyCenter');
     if (alignment === 'right') formatText('justifyRight');
     if (alignment === 'justify') formatText('justifyFull');
+    // Update active formats after alignment
+    setTimeout(updateActiveFormats, 10);
   };
 
   const handleAddLink = () => {
@@ -292,29 +335,57 @@ const Editor = ({
         <div style={{ padding: '0.75rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             {/* Text Formatting */}
-            <button onClick={() => formatText('bold')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Bold">
+            <button 
+              onClick={() => formatText('bold')} 
+              style={getButtonStyle(activeFormats.bold, { padding: '0.5rem' })} 
+              title="Bold"
+            >
               <Bold size={18} />
             </button>
-            <button onClick={() => formatText('italic')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Italic">
+            <button 
+              onClick={() => formatText('italic')} 
+              style={getButtonStyle(activeFormats.italic, { padding: '0.5rem' })} 
+              title="Italic"
+            >
               <Italic size={18} />
             </button>
-            <button onClick={() => formatText('underline')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Underline">
+            <button 
+              onClick={() => formatText('underline')} 
+              style={getButtonStyle(activeFormats.underline, { padding: '0.5rem' })} 
+              title="Underline"
+            >
               <Underline size={18} />
             </button>
 
             <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#d1d5db', margin: '0 0.5rem' }}></div>
 
             {/* Text Alignment */}
-            <button onClick={() => alignText('left')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Align Left">
+            <button 
+              onClick={() => alignText('left')} 
+              style={getButtonStyle(activeFormats.justifyLeft, { padding: '0.5rem' })} 
+              title="Align Left"
+            >
               <AlignLeft size={18} />
             </button>
-            <button onClick={() => alignText('center')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Align Center">
+            <button 
+              onClick={() => alignText('center')} 
+              style={getButtonStyle(activeFormats.justifyCenter, { padding: '0.5rem' })} 
+              title="Align Center"
+            >
               <AlignCenter size={18} />
             </button>
-            <button onClick={() => alignText('right')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Align Right">
+            <button 
+              onClick={() => alignText('right')} 
+              style={getButtonStyle(activeFormats.justifyRight, { padding: '0.5rem' })} 
+              title="Align Right"
+            >
               <AlignRight size={18} />
             </button>
-            <button onClick={() => alignText('justify')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Justify">
+            <button 
+              onClick={() => alignText('justify')} 
+              style={getButtonStyle(activeFormats.justifyFull, { padding: '0.5rem' })} 
+              title="Justify"
+            >
               <AlignJustify size={18} />
             </button>
 
@@ -360,6 +431,9 @@ const Editor = ({
           ref={contentRef}
           contentEditable
           onInput={handleContentChange}
+          onMouseUp={updateActiveFormats}
+          onKeyUp={updateActiveFormats}
+          onFocus={updateActiveFormats}
           onClick={handleImageClick}
           style={{
             flex: 1,
@@ -448,12 +522,20 @@ const Editor = ({
           justifyContent: 'center', 
           zIndex: 50 
         }}>
-          <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', margin: '1rem', maxWidth: '400px', width: '90%'}}>
+          <div style={{ 
+                backgroundColor: 'white', 
+                borderRadius: '0.75rem', 
+                padding: '2.5rem', 
+                margin: '1.5rem',
+                maxWidth: '480px',
+                width: '90%',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                }}>
 
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', margin: 0 }}>Add Link</h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1.5rem', margin: 0, color: '#111827' }}>Add Link</h3>
             
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.25rem' }}>
                 Link Text (optional)
               </label>
               <input
@@ -463,16 +545,18 @@ const Editor = ({
                 placeholder="Display text for the link"
                 style={{
                   width: '100%',
-                  padding: '0.75rem',
+                  padding: '0.875rem 1rem',
                   border: '1px solid #d1d5db',
-                  borderRadius: '0.375rem',
-                  fontSize: '0.875rem'
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  transition: 'border-color 0.2s ease-in-out',
+                  outline: 'none',
                 }}
               />
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.25rem' }}>
+            <div style={{ marginBottom: '2rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.75rem' }}>
                 URL
               </label>
               <input
@@ -482,16 +566,18 @@ const Editor = ({
                 placeholder="https://example.com"
                 style={{
                   width: '100%',
-                  padding: '0.75rem',
+                  padding: '0.875rem 1rem',
                   border: '1px solid #d1d5db',
-                  borderRadius: '0.375rem',
-                  fontSize: '0.875rem'
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  transition: 'border-color 0.2s ease-in-out',
+                  outline: 'none'
                 }}
                 autoFocus
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem' }}>
               <button
                 onClick={() => {
                   setShowLinkModal(false);
@@ -501,11 +587,14 @@ const Editor = ({
                   contentRef.current?.focus();
                 }}
                 style={{
-                  padding: '0.5rem 1rem',
+                  padding: '0.75rem 1.5rem',
                   color: '#6b7280',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer'
+                  backgroundColor: '#f9fafb',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '400'
                 }}
               >
                 Cancel
@@ -514,12 +603,15 @@ const Editor = ({
                 onClick={insertLink}
                 disabled={!linkUrl}
                 style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: linkUrl ? '#2563eb' : '#d1d5db',
-                  color: 'white',
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: linkUrl ? '#2563eb' : '#e5e7eb',
+                  color: linkUrl ? 'white' : '#9ca3af',
                   border: 'none',
-                  borderRadius: '0.375rem',
-                  cursor: linkUrl ? 'pointer' : 'not-allowed'
+                  borderRadius: '0.5rem',
+                  cursor: linkUrl ? 'pointer' : 'not-allowed',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  boxShadow: linkUrl ? '0 1px 2px 0 rgba(0, 0, 0, 0.05)' : 'none'
                 }}
               >
                 Add Link
@@ -690,3 +782,4 @@ const Editor = ({
 };
 
 export default Editor;
+
