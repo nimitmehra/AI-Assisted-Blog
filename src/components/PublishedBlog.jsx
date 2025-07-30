@@ -128,10 +128,12 @@ const PublishedBlog = () => {
       <header className="blog-header">
         <div className="blog-header-content">
           <h1 className="blog-title">
-            <Link to="/">Blog</Link>
+            {/* UPDATED: Blog home link now points to /blog */}
+            <Link to="/blog">Blog</Link>
           </h1>
           <nav className="blog-nav">
-            <Link to="/admin" className="admin-link">Admin</Link>
+            {/* UPDATED: Admin link now points to / (root) */}
+            <Link to="/" className="admin-link">Admin</Link>
           </nav>
         </div>
       </header>
@@ -144,11 +146,13 @@ const PublishedBlog = () => {
             <div className="blog-page-title">
               <h2>{getPageTitle()}</h2>
               <div className="blog-breadcrumb">
-                <Link to="/">Home</Link>
+                {/* UPDATED: Home link now points to /blog */}
+                <Link to="/blog">Home</Link>
                 {year && (
                   <>
                     <span> / </span>
-                    <Link to={`/archive/${year}`}>{year}</Link>
+                    {/* UPDATED: Archive year link includes /blog prefix */}
+                    <Link to={`/blog/archive/${year}`}>{year}</Link>
                   </>
                 )}
                 {month && (
@@ -172,7 +176,8 @@ const PublishedBlog = () => {
             <div className="blog-no-posts">
               <h2>No posts found</h2>
               <p>There are no published posts to display.</p>
-              <Link to="/" className="blog-home-link">← Back to Home</Link>
+              {/* UPDATED: Back to Home link now points to /blog */}
+              <Link to="/blog" className="blog-home-link">← Back to Home</Link>
             </div>
           ) : (
             <div className="blog-posts">
@@ -181,7 +186,8 @@ const PublishedBlog = () => {
                   <header className="blog-post-header">
                     <h2 className="blog-post-title">
                       {id ? post.title : (
-                        <Link to={`/post/${post.id}`}>{post.title}</Link>
+                        /* UPDATED: Post links include /blog prefix */
+                        <Link to={`/blog/post/${post.id}`}>{post.title}</Link>
                       )}
                     </h2>
                     <div className="blog-post-meta">
@@ -191,9 +197,10 @@ const PublishedBlog = () => {
                       {post.tags && post.tags.length > 0 && (
                         <div className="blog-post-tags">
                           {post.tags.map(tag => (
+                            /* UPDATED: Tag links include /blog prefix */
                             <Link 
                               key={tag} 
-                              to={`/tag/${encodeURIComponent(tag)}`}
+                              to={`/blog/tag/${encodeURIComponent(tag)}`}
                               className="blog-post-tag"
                             >
                               {tag}

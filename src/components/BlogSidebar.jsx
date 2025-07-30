@@ -16,7 +16,8 @@ const BlogSidebar = ({ archiveData, tagData }) => {
               .map(([year, months]) => (
                 <div key={year} className="blog-archive-year">
                   <h4 className="blog-archive-year-title">
-                    <Link to={`/archive/${year}`} className="blog-archive-year-link">
+                    {/* UPDATED: Archive year link includes /blog prefix */}
+                    <Link to={`/blog/archive/${year}`} className="blog-archive-year-link">
                       {year}
                     </Link>
                   </h4>
@@ -32,8 +33,9 @@ const BlogSidebar = ({ archiveData, tagData }) => {
                       })
                       .map(([month, count]) => (
                         <li key={month} className="blog-archive-month">
+                          {/* UPDATED: Archive month link includes /blog prefix */}
                           <Link 
-                            to={`/archive/${year}/${month.toLowerCase()}`}
+                            to={`/blog/archive/${year}/${month.toLowerCase()}`}
                             className="blog-archive-month-link"
                           >
                             {month} ({count})
@@ -57,9 +59,10 @@ const BlogSidebar = ({ archiveData, tagData }) => {
             Object.entries(tagData)
               .sort(([,a], [,b]) => b - a) // Sort by count descending
               .map(([tag, count]) => (
+                /* UPDATED: Tag links include /blog prefix */
                 <Link 
                   key={tag} 
-                  to={`/tag/${encodeURIComponent(tag)}`}
+                  to={`/blog/tag/${encodeURIComponent(tag)}`}
                   className="blog-tag-link"
                   title={`${count} post${count === 1 ? '' : 's'}`}
                 >

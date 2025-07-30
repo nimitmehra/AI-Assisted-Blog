@@ -8,15 +8,19 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<PublishedBlog />} />
-        <Route path="/post/:id" element={<PublishedBlog />} />
-        <Route path="/archive/:year" element={<PublishedBlog />} />
-        <Route path="/archive/:year/:month" element={<PublishedBlog />} />
-        <Route path="/tag/:tagname" element={<PublishedBlog />} />
-        <Route path="/admin" element={<AppOrchestrator />} />
+        {/* Admin Route - DEFAULT (Dashboard/Editor) */}
+        <Route path="/" element={<AppOrchestrator />} />
+        
+        {/* Blog Routes - Public */}
+        <Route path="/blog" element={<PublishedBlog />} />
+        <Route path="/blog/post/:id" element={<PublishedBlog />} />
+        <Route path="/blog/archive/:year" element={<PublishedBlog />} />
+        <Route path="/blog/archive/:year/:month" element={<PublishedBlog />} />
+        <Route path="/blog/tag/:tagname" element={<PublishedBlog />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
 export default App;
+

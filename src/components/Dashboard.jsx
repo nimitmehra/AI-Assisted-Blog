@@ -28,9 +28,9 @@ const Dashboard = ({ posts = [], onEditPost, onNewPost }) => {
 
   const counts = getFilterCounts();
 
-  // ADDED: Simple function to navigate to blog view
+  // UPDATED: View Blog button now opens /blog instead of /
   const handleViewBlog = () => {
-    window.open('/', '_blank');
+    window.open('/blog', '_blank');
   };
 
   return (
@@ -56,7 +56,7 @@ const Dashboard = ({ posts = [], onEditPost, onNewPost }) => {
             </span>
           </div>
           
-          {/* ADDED: Button container with both View Blog and New Post buttons */}
+          {/* Button container with both View Blog and New Post buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button
               onClick={handleViewBlog}
