@@ -1,16 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  ArrowLeft, Bold, Italic, Underline, List, ListOrdered, Quote, 
+import {
+  ArrowLeft, Bold, Italic, Underline, List, ListOrdered, Quote,
   Undo, Redo, Link, Image, Save, Send, CheckCircle, X,
-  AlignLeft, AlignCenter, AlignRight, AlignJustify
+  AlignLeft, AlignCenter, AlignRight, AlignJustify, Trash2, Tag
 } from 'lucide-react';
 import { calculateWordCount } from '../utils/SharedUtils';
 
-const Editor = ({ 
-  post, 
-  onSave, 
-  onPublish, 
+const Editor = ({
+  post,
+  onSave,
+  onPublish,
   onCancel,
+  onDelete, // NEW: Delete handler prop
   saveStatus = '',
   lastSaved = null
 }) => {
@@ -18,578 +19,802 @@ const Editor = ({
   const [editorTitle, setEditorTitle] = useState(post?.title || '');
   const [editorContent, setEditorContent] = useState(post?.content || '');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  
-  // Rich editor state
+
+  // NEW: Tag State
+  const [tags, setTags] = useState(post?.tags || []);
+  const [tagInput, setTagInput] = useState('');
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [filteredTags, setFilteredTags] = useState([]);
+
+  // NEW: Delete State
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Link Modal State
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkText, setLinkText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
-  const [showImageSizeModal, setShowImageSizeModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
-  
+
+  // Image Modal State
+  const [showImageSizeModal, setShowImageSizeModal] = useState(false);
+
   // Active formatting state
   const [activeFormats, setActiveFormats] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-    justifyLeft: false,
-    justifyCenter: false,
-    justifyRight: false,
-    justifyFull: false
+    bold: false, italic: false, underline: false,
+    justifyLeft: false, justifyCenter: false, justifyRight: false, justifyFull: false
   });
-  
+
   // Refs
   const contentRef = useRef(null);
   const fileInputRef = useRef(null);
   const savedSelectionRef = useRef(null);
+  const tagInputRef = useRef(null);
+
+  // NEW: Load available tags from localStorage
+  useEffect(() => {
+    const loadAvailableTags = () => {
+      try {
+        const savedPosts = localStorage.getItem('blog-posts');
+        if (savedPosts) {
+          const posts = JSON.parse(savedPosts);
+          const allTags = new Set();
+          posts.forEach(post => {
+            if (post.tags) {
+              post.tags.forEach(tag => allTags.add(tag));
+            }
+          });
+          setAvailableTags(Array.from(allTags).sort());
+        }
+      } catch (error) {
+        console.error('Error loading available tags:', error);
+      }
+    };
+
+    loadAvailableTags();
+  }, []);
 
   // Initialize content when post changes
   useEffect(() => {
     if (post) {
       setEditorTitle(post.title || '');
       setEditorContent(post.content || '');
+      setTags(post.tags || []); // NEW: Initialize tags
       setHasUnsavedChanges(false);
-      
-      // Set content in contentEditable
-      setTimeout(() => {
-        if (contentRef.current) {
-          contentRef.current.innerHTML = post.content || '';
-        }
-      }, 0);
     }
+
+    // Set content in contentEditable
+    setTimeout(() => {
+      if (contentRef.current && post?.content) {
+        contentRef.current.innerHTML = post.content;
+      }
+    }, 100);
   }, [post]);
 
-  // Content change tracking
-  const handleTitleChange = (e) => {
-    setEditorTitle(e.target.value);
-    setHasUnsavedChanges(true);
-  };
-
-  const handleContentChange = () => {
-    const newContent = contentRef.current?.innerHTML || '';
-    setEditorContent(newContent);
-    setHasUnsavedChanges(true);
-  };
-
-  // Update active formatting states
+  // Update active formats based on cursor position
   const updateActiveFormats = () => {
     if (!contentRef.current) return;
-    
-    setActiveFormats({
-      bold: document.queryCommandState('bold'),
-      italic: document.queryCommandState('italic'),
-      underline: document.queryCommandState('underline'),
-      justifyLeft: document.queryCommandState('justifyLeft'),
-      justifyCenter: document.queryCommandState('justifyCenter'),
-      justifyRight: document.queryCommandState('justifyRight'),
-      justifyFull: document.queryCommandState('justifyFull')
-    });
+
+    try {
+      setActiveFormats({
+        bold: document.queryCommandState('bold'),
+        italic: document.queryCommandState('italic'),
+        underline: document.queryCommandState('underline'),
+        justifyLeft: document.queryCommandState('justifyLeft'),
+        justifyCenter: document.queryCommandState('justifyCenter'),
+        justifyRight: document.queryCommandState('justifyRight'),
+        justifyFull: document.queryCommandState('justifyFull')
+      });
+    } catch (error) {
+      console.error('Error updating active formats:', error);
+    }
   };
 
   // Get button style based on active state
   const getButtonStyle = (isActive, baseStyle = {}) => ({
     ...baseStyle,
-    backgroundColor: isActive ? '#2563eb' : (baseStyle.backgroundColor || 'transparent'),
-    color: isActive ? 'white' : (baseStyle.color || '#374151'),
+    backgroundColor: isActive ? '#3b82f6' : 'transparent',
+    color: isActive ? 'white' : '#6b7280',
     fontWeight: isActive ? '600' : '500',
-    transform: isActive ? 'scale(0.95)' : 'scale(1)',
-    transition: 'all 0.1s ease-in-out',
-    border: 'none',
-    borderRadius: '0.25rem',
+    transform: isActive ? 'scale(1.05)' : 'scale(1)',
+    transition: 'all 0.2s ease',
+    border: '1px solid #d1d5db',
+    borderRadius: '0.375rem',
     cursor: 'pointer'
   });
 
-  // Rich text formatting functions
+  // Format text functions
   const formatText = (command, value = null) => {
     document.execCommand(command, false, value);
     contentRef.current?.focus();
-    handleContentChange();
-    // Update active formats after formatting
     setTimeout(updateActiveFormats, 10);
   };
 
-  // Text alignment functions
   const alignText = (alignment) => {
-    formatText('justifyLeft');
-    if (alignment === 'center') formatText('justifyCenter');
-    if (alignment === 'right') formatText('justifyRight');
-    if (alignment === 'justify') formatText('justifyFull');
-    // Update active formats after alignment
-    setTimeout(updateActiveFormats, 10);
+    formatText(`justify${alignment.charAt(0).toUpperCase() + alignment.slice(1)}`);
   };
 
-  const handleAddLink = () => {
+  // Handle content changes
+  const handleContentChange = () => {
+    if (contentRef.current) {
+      const newContent = contentRef.current.innerHTML;
+      setEditorContent(newContent);
+      setHasUnsavedChanges(true);
+    }
+  };
+
+  const handleTitleChange = (e) => {
+    setEditorTitle(e.target.value);
+    setHasUnsavedChanges(true);
+  };
+
+  // NEW: Tag handling functions
+  const handleTagInputChange = (e) => {
+    const value = e.target.value;
+    setTagInput(value);
+    
+    if (value.trim()) {
+      const filtered = availableTags.filter(tag => 
+        tag.toLowerCase().includes(value.toLowerCase()) && 
+        !tags.includes(tag)
+      );
+      setFilteredTags(filtered);
+      setShowTagDropdown(true);
+    } else {
+      setShowTagDropdown(false);
+    }
+  };
+
+  const handleTagInputKeyDown = (e) => {
+    if (e.key === 'Enter' && tagInput.trim()) {
+      e.preventDefault();
+      addTag(tagInput.trim());
+    } else if (e.key === 'Escape') {
+      setShowTagDropdown(false);
+    }
+  };
+
+  const addTag = (tagName) => {
+    if (tagName && !tags.includes(tagName)) {
+      setTags([...tags, tagName]);
+      setTagInput('');
+      setShowTagDropdown(false);
+      setHasUnsavedChanges(true);
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
+    setHasUnsavedChanges(true);
+  };
+
+  const selectTagFromDropdown = (tag) => {
+    addTag(tag);
+  };
+
+  // NEW: Delete handling functions
+  const handleDeleteClick = () => {
+    if (post && post.id) {
+      setShowDeleteConfirm(true);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (post && post.id && onDelete) {
+      onDelete(post.id);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+  };
+
+  // Link handling functions
+  const handleLinkClick = () => {
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
-      savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
-      const selectedText = selection.toString();
-      setLinkText(selectedText || '');
-    } else {
-      savedSelectionRef.current = null;
-      setLinkText('');
+      savedSelectionRef.current = selection.getRangeAt(0);
+      setLinkText(selection.toString());
     }
     setShowLinkModal(true);
   };
 
   const insertLink = () => {
-    if (!linkUrl) return;
-
-    contentRef.current?.focus();
-    const linkElement = document.createElement('a');
-    linkElement.href = linkUrl;
-    linkElement.target = '_blank';
-    linkElement.rel = 'noopener noreferrer';
-    linkElement.style.color = '#2563eb';
-    linkElement.style.textDecoration = 'underline';
-    linkElement.textContent = linkText || linkUrl;
-
-    if (savedSelectionRef.current) {
+    if (linkUrl && savedSelectionRef.current) {
       const selection = window.getSelection();
       selection.removeAllRanges();
       selection.addRange(savedSelectionRef.current);
-      savedSelectionRef.current.deleteContents();
-      savedSelectionRef.current.insertNode(linkElement);
-      savedSelectionRef.current.setStartAfter(linkElement);
-      savedSelectionRef.current.setEndAfter(linkElement);
-      selection.removeAllRanges();
-      selection.addRange(savedSelectionRef.current);
+      
+      const displayText = linkText || linkUrl;
+      const linkHtml = `<a href="${linkUrl}" target="_blank">${displayText}</a>`;
+      document.execCommand('insertHTML', false, linkHtml);
+      
+      setShowLinkModal(false);
+      setLinkText('');
+      setLinkUrl('');
+      savedSelectionRef.current = null;
+      contentRef.current?.focus();
+      handleContentChange();
     }
+  };
 
-    handleContentChange();
-    setShowLinkModal(false);
-    setLinkText('');
-    setLinkUrl('');
-    savedSelectionRef.current = null;
+  // Image handling functions
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
-    if (file && file.type.startsWith('image/')) {
+    if (file && (file.type === 'image/png' || file.type === 'image/jpeg')) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const imageHtml = `<img src="${e.target.result}" alt="Uploaded image" class="editor-image" style="max-width: 50%; height: auto; margin: 1rem 0; border-radius: 8px; display: block;" />`;
-        document.execCommand('insertHTML', false, imageHtml);
-        contentRef.current?.focus();
-        handleContentChange();
+        setSelectedImage(e.target.result);
+        setShowImageSizeModal(true);
       };
       reader.readAsDataURL(file);
     }
     event.target.value = '';
   };
 
-  const triggerImageUpload = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Image sizing functions
-  const handleImageClick = (e) => {
-    if (e.target.tagName === 'IMG') {
-      setSelectedImage(e.target);
-      setShowImageSizeModal(true);
+  const insertImage = (size) => {
+    if (selectedImage) {
+      const img = `<img src="${selectedImage}" style="width: ${size}%; height: auto; border-radius: 0.375rem; margin: 0.5rem 0;" />`;
+      document.execCommand('insertHTML', false, img);
+      setShowImageSizeModal(false);
+      setSelectedImage(null);
+      contentRef.current?.focus();
+      handleContentChange();
     }
   };
 
-  const resizeImage = (size) => {
-    if (!selectedImage) return;
-    
-    const sizeMap = {
-      small: '25%',
-      medium: '50%',
-      large: '75%',
-      full: '100%'
-    };
-    
-    selectedImage.style.maxWidth = sizeMap[size];
-    setShowImageSizeModal(false);
-    setSelectedImage(null);
-    handleContentChange();
-  };
-
+  // Save functions
   const handleSave = () => {
-    if (!editorTitle.trim()) {
-      alert('Please enter a title');
-      return;
-    }
+    const wordCount = calculateWordCount(editorContent);
     onSave({
       title: editorTitle,
       content: editorContent,
-      wordCount: calculateWordCount(editorContent)
+      tags: tags, // NEW: Include tags in save
+      wordCount
     });
     setHasUnsavedChanges(false);
   };
 
   const handlePublish = () => {
-    if (!editorTitle.trim()) {
-      alert('Please enter a title');
-      return;
-    }
+    const wordCount = calculateWordCount(editorContent);
     onPublish({
       title: editorTitle,
       content: editorContent,
-      wordCount: calculateWordCount(editorContent)
+      tags: tags, // NEW: Include tags in publish
+      wordCount
     });
     setHasUnsavedChanges(false);
   };
 
-  const handleCancel = () => {
-    if (hasUnsavedChanges) {
-      const confirmLeave = window.confirm('You have unsaved changes. Are you sure you want to leave?');
-      if (!confirmLeave) return;
-    }
-    onCancel();
-  };
+  const getWordCount = () => calculateWordCount(editorContent);
+  const getCharCount = () => editorContent.replace(/<[^>]*>/g, '').length;
 
   return (
-    <div style={{ 
-      height: '100vh', 
-      display: 'flex', 
-      flexDirection: 'column',
-      maxWidth: '64rem', 
-      margin: '0 auto', 
-      backgroundColor: 'white' 
-    }}>
-      {/* Editor Header - Fixed Height */}
-      <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+      {/* Header */}
+      <header style={{ 
+        backgroundColor: 'white', 
+        borderBottom: '1px solid #e5e7eb', 
+        padding: '1rem 1.5rem' 
+      }}>
+        <div style={{ 
+          maxWidth: '72rem', 
+          margin: '0 auto', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between' 
+        }}>
           <button
-            onClick={handleCancel}
+            onClick={onCancel}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
               padding: '0.5rem 1rem',
-              color: '#6b7280',
               backgroundColor: 'transparent',
+              color: '#6b7280',
               border: '1px solid #d1d5db',
               borderRadius: '0.5rem',
               cursor: 'pointer'
             }}
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
             <span>Back to Dashboard</span>
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {hasUnsavedChanges && (
-              <span style={{ fontSize: '0.875rem', color: '#f59e0b', fontWeight: '500' }}>
-                • Unsaved changes
-              </span>
-            )}
             <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-              {post ? `Editing: ${post.title}` : 'New Post'}
+              {getWordCount()} words • {getCharCount()} characters
+              {lastSaved && (
+                <span style={{ marginLeft: '1rem' }}>
+                  Last saved: {lastSaved.toLocaleTimeString()}
+                </span>
+              )}
             </div>
+            
+            {saveStatus && (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                color: saveStatus === 'saved' ? '#10b981' : '#6b7280'
+              }}>
+                {saveStatus === 'saved' && <CheckCircle size={16} />}
+                <span style={{ fontSize: '0.875rem' }}>
+                  {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
+      </header>
 
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#111827', margin: 0, marginBottom: '0.5rem' }}>
-          {post ? 'Edit Post' : 'New Journal Entry'}
-        </h1>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.875rem', color: '#6b7280' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span>{calculateWordCount(editorContent)} words</span>
-            <span>{editorContent.length} characters</span>
-            {lastSaved && (
-              <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
-            )}
+      {/* Main Editor */}
+      <main style={{ maxWidth: '72rem', margin: '0 auto', padding: '2rem 1.5rem' }}>
+        <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+          {/* Title Input */}
+          <div style={{ padding: '1.5rem 1.5rem 0' }}>
+            <input
+              type="text"
+              placeholder="Post title..."
+              value={editorTitle}
+              onChange={handleTitleChange}
+              style={{
+                width: '100%',
+                fontSize: '2rem',
+                fontWeight: 'bold',
+                border: 'none',
+                outline: 'none',
+                backgroundColor: 'transparent',
+                color: '#111827'
+              }}
+            />
           </div>
 
-          {/* Save Status Indicator */}
-          {saveStatus && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {saveStatus === 'saving' && (
-                <span style={{ color: '#2563eb' }}>Saving...</span>
+          {/* NEW: Tag Input Section */}
+          <div style={{ padding: '0 1.5rem 1rem', position: 'relative' }}>
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                fontSize: '0.875rem', 
+                fontWeight: '500', 
+                color: '#374151',
+                marginBottom: '0.5rem'
+              }}>
+                <Tag size={16} />
+                Tags
+              </label>
+              
+              {/* Tag Display */}
+              {tags.length > 0 && (
+                <div style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  gap: '0.5rem',
+                  marginBottom: '0.5rem'
+                }}>
+                  {tags.map(tag => (
+                    <span 
+                      key={tag}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        padding: '0.25rem 0.5rem',
+                        backgroundColor: '#dbeafe',
+                        color: '#1e40af',
+                        fontSize: '0.75rem',
+                        fontWeight: '500',
+                        borderRadius: '0.375rem',
+                        border: '1px solid #bfdbfe'
+                      }}
+                    >
+                      {tag}
+                      <button
+                        onClick={() => removeTag(tag)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#1e40af',
+                          cursor: 'pointer',
+                          padding: '0',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        title={`Remove ${tag}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               )}
-              {saveStatus === 'saved' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#059669' }}>
-                  <CheckCircle size={16} />
-                  <span>Saved!</span>
+
+              {/* Tag Input */}
+              <input
+                ref={tagInputRef}
+                type="text"
+                placeholder="Add tags..."
+                value={tagInput}
+                onChange={handleTagInputChange}
+                onKeyDown={handleTagInputKeyDown}
+                onFocus={() => tagInput.trim() && setShowTagDropdown(true)}
+                onBlur={() => setTimeout(() => setShowTagDropdown(false), 200)}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem',
+                  outline: 'none'
+                }}
+              />
+
+              {/* Tag Dropdown */}
+              {showTagDropdown && filteredTags.length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: '1.5rem',
+                  right: '1.5rem',
+                  backgroundColor: 'white',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  zIndex: 10,
+                  maxHeight: '200px',
+                  overflowY: 'auto'
+                }}>
+                  {filteredTags.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => selectTagFromDropdown(tag)}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        textAlign: 'left',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        color: '#374151'
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                    >
+                      {tag}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Title Input - Fixed Height */}
-      <div style={{ padding: '0 1.5rem', paddingTop: '1rem', flexShrink: 0 }}>
-        <input
-          type="text"
-          placeholder="Entry title..."
-          value={editorTitle}
-          onChange={handleTitleChange}
-          style={{
-            width: '100%',
-            fontSize: '1.875rem',
-            fontWeight: 'bold',
-            color: '#111827',
-            backgroundColor: 'transparent',
-            border: 'none',
-            outline: 'none',
-            padding: '0.5rem 0'
-          }}
-        />
-      </div>
-
-      {/* Rich Text Formatting Toolbar - Fixed Height */}
-      <div style={{ padding: '0 1.5rem', paddingBottom: '1rem', flexShrink: 0 }}>
-        <div style={{ padding: '0.75rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {/* Text Formatting */}
-            <button 
-              onClick={() => formatText('bold')} 
-              style={getButtonStyle(activeFormats.bold, { padding: '0.5rem' })} 
-              title="Bold"
-            >
-              <Bold size={18} />
-            </button>
-            <button 
-              onClick={() => formatText('italic')} 
-              style={getButtonStyle(activeFormats.italic, { padding: '0.5rem' })} 
-              title="Italic"
-            >
-              <Italic size={18} />
-            </button>
-            <button 
-              onClick={() => formatText('underline')} 
-              style={getButtonStyle(activeFormats.underline, { padding: '0.5rem' })} 
-              title="Underline"
-            >
-              <Underline size={18} />
-            </button>
-
-            <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#d1d5db', margin: '0 0.5rem' }}></div>
-
-            {/* Text Alignment */}
-            <button 
-              onClick={() => alignText('left')} 
-              style={getButtonStyle(activeFormats.justifyLeft, { padding: '0.5rem' })} 
-              title="Align Left"
-            >
-              <AlignLeft size={18} />
-            </button>
-            <button 
-              onClick={() => alignText('center')} 
-              style={getButtonStyle(activeFormats.justifyCenter, { padding: '0.5rem' })} 
-              title="Align Center"
-            >
-              <AlignCenter size={18} />
-            </button>
-            <button 
-              onClick={() => alignText('right')} 
-              style={getButtonStyle(activeFormats.justifyRight, { padding: '0.5rem' })} 
-              title="Align Right"
-            >
-              <AlignRight size={18} />
-            </button>
-            <button 
-              onClick={() => alignText('justify')} 
-              style={getButtonStyle(activeFormats.justifyFull, { padding: '0.5rem' })} 
-              title="Justify"
-            >
-              <AlignJustify size={18} />
-            </button>
-
-            <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#d1d5db', margin: '0 0.5rem' }}></div>
-
-            {/* Lists and Quotes */}
-            <button onClick={() => formatText('insertUnorderedList')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Bullet List">
-              <List size={18} />
-            </button>
-            <button onClick={() => formatText('insertOrderedList')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Numbered List">
-              <ListOrdered size={18} />
-            </button>
-            <button onClick={() => formatText('formatBlock', 'blockquote')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Quote">
-              <Quote size={18} />
-            </button>
-
-            <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#d1d5db', margin: '0 0.5rem' }}></div>
-
-            {/* Links and Images */}
-            <button onClick={handleAddLink} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Add Link">
-              <Link size={18} />
-            </button>
-            <button onClick={triggerImageUpload} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Upload Image">
-              <Image size={18} />
-            </button>
-
-            <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#d1d5db', margin: '0 0.5rem' }}></div>
-
-            {/* Undo/Redo */}
-            <button onClick={() => formatText('undo')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Undo">
-              <Undo size={18} />
-            </button>
-            <button onClick={() => formatText('redo')} style={{ padding: '0.5rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }} title="Redo">
-              <Redo size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Editor - Flexible Height */}
-      <div style={{ flex: 1, padding: '0 1.5rem', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div
-          ref={contentRef}
-          contentEditable
-          onInput={handleContentChange}
-          onMouseUp={updateActiveFormats}
-          onKeyUp={updateActiveFormats}
-          onFocus={updateActiveFormats}
-          onClick={handleImageClick}
-          style={{
-            flex: 1,
-            padding: '1rem',
-            fontSize: '1.125rem',
-            lineHeight: '1.8',
-            color: '#111827',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.5rem',
-            outline: 'none',
-            backgroundColor: 'white',
-            textAlign: 'left',
-            overflowY: 'auto'
-          }}
-          suppressContentEditableWarning={true}
-          data-placeholder="Start writing your thoughts..."
-        />
-      </div>
-
-      {/* Save Action Buttons - Fixed Height */}
-      <div style={{ padding: '1.5rem', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-            {post ? 'Changes will update the existing post' : 'Choose how to save your new post'}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button
-              onClick={handleSave}
-              disabled={saveStatus === 'saving'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 1rem',
-                backgroundColor: '#f3f4f6',
-                color: '#374151',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer'
-              }}
-            >
-              <Save size={18} />
-              <span>{post ? 'Update Draft' : 'Save Draft'}</span>
-            </button>
+          {/* Toolbar */}
+          <div style={{ 
+            padding: '0 1.5rem 1rem',
+            borderBottom: '1px solid #e5e7eb'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              flexWrap: 'wrap', 
+              gap: '0.5rem',
+              alignItems: 'center'
+            }}>
+              {/* Text Formatting */}
+              <button
+                onClick={() => formatText('bold')}
+                style={getButtonStyle(activeFormats.bold, { padding: '0.5rem' })}
+                title="Bold"
+              >
+                <Bold size={18} />
+              </button>
+              
+              <button
+                onClick={() => formatText('italic')}
+                style={getButtonStyle(activeFormats.italic, { padding: '0.5rem' })}
+                title="Italic"
+              >
+                <Italic size={18} />
+              </button>
+              
+              <button
+                onClick={() => formatText('underline')}
+                style={getButtonStyle(activeFormats.underline, { padding: '0.5rem' })}
+                title="Underline"
+              >
+                <Underline size={18} />
+              </button>
 
-            <button
-              onClick={handlePublish}
-              disabled={saveStatus === 'saving'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 1.5rem',
-                backgroundColor: '#2563eb',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.5rem',
-                cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer'
-              }}
-            >
-              <Send size={18} />
-              <span>{post ? 'Update & Publish' : 'Publish'}</span>
-            </button>
+              <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#d1d5db' }} />
+
+              {/* Alignment */}
+              <button
+                onClick={() => alignText('left')}
+                style={getButtonStyle(activeFormats.justifyLeft, { padding: '0.5rem' })}
+                title="Align Left"
+              >
+                <AlignLeft size={18} />
+              </button>
+              
+              <button
+                onClick={() => alignText('center')}
+                style={getButtonStyle(activeFormats.justifyCenter, { padding: '0.5rem' })}
+                title="Align Center"
+              >
+                <AlignCenter size={18} />
+              </button>
+              
+              <button
+                onClick={() => alignText('right')}
+                style={getButtonStyle(activeFormats.justifyRight, { padding: '0.5rem' })}
+                title="Align Right"
+              >
+                <AlignRight size={18} />
+              </button>
+              
+              <button
+                onClick={() => alignText('full')}
+                style={getButtonStyle(activeFormats.justifyFull, { padding: '0.5rem' })}
+                title="Justify"
+              >
+                <AlignJustify size={18} />
+              </button>
+
+              <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#d1d5db' }} />
+
+              {/* Lists */}
+              <button
+                onClick={() => formatText('insertUnorderedList')}
+                style={getButtonStyle(false, { padding: '0.5rem' })}
+                title="Bullet List"
+              >
+                <List size={18} />
+              </button>
+              
+              <button
+                onClick={() => formatText('insertOrderedList')}
+                style={getButtonStyle(false, { padding: '0.5rem' })}
+                title="Numbered List"
+              >
+                <ListOrdered size={18} />
+              </button>
+              
+              <button
+                onClick={() => formatText('formatBlock', 'blockquote')}
+                style={getButtonStyle(false, { padding: '0.5rem' })}
+                title="Quote"
+              >
+                <Quote size={18} />
+              </button>
+
+              <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#d1d5db' }} />
+
+              {/* Media */}
+              <button
+                onClick={handleLinkClick}
+                style={getButtonStyle(false, { padding: '0.5rem' })}
+                title="Insert Link"
+              >
+                <Link size={18} />
+              </button>
+              
+              <button
+                onClick={handleImageClick}
+                style={getButtonStyle(false, { padding: '0.5rem' })}
+                title="Insert Image"
+              >
+                <Image size={18} />
+              </button>
+
+              <div style={{ width: '1px', height: '1.5rem', backgroundColor: '#d1d5db' }} />
+
+              {/* Undo/Redo */}
+              <button
+                onClick={() => formatText('undo')}
+                style={getButtonStyle(false, { padding: '0.5rem' })}
+                title="Undo"
+              >
+                <Undo size={18} />
+              </button>
+              
+              <button
+                onClick={() => formatText('redo')}
+                style={getButtonStyle(false, { padding: '0.5rem' })}
+                title="Redo"
+              >
+                <Redo size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Content Editor */}
+          <div
+            ref={contentRef}
+            contentEditable
+            onInput={handleContentChange}
+            onMouseUp={updateActiveFormats}
+            onKeyUp={updateActiveFormats}
+            onFocus={updateActiveFormats}
+            style={{
+              minHeight: '400px',
+              padding: '1.5rem',
+              outline: 'none',
+              fontSize: '1rem',
+              lineHeight: '1.6',
+              color: '#111827'
+            }}
+            suppressContentEditableWarning={true}
+          />
+
+          {/* Action Buttons */}
+          <div style={{ 
+            padding: '1.5rem',
+            borderTop: '1px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            {/* NEW: Delete Button (only show for existing posts) */}
+            <div>
+              {post && post.id && (
+                <button
+                  onClick={handleDeleteClick}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.5rem 1rem',
+                    backgroundColor: 'transparent',
+                    color: '#dc2626',
+                    border: '1px solid #dc2626',
+                    borderRadius: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '500'
+                  }}
+                  title="Delete this post"
+                >
+                  <Trash2 size={16} />
+                  <span>Delete Post</span>
+                </button>
+              )}
+            </div>
+
+            {/* Save Buttons */}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={handleSave}
+                disabled={!editorTitle.trim() || saveStatus === 'saving'}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#f9fafb',
+                  color: '#374151',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  cursor: editorTitle.trim() && saveStatus !== 'saving' ? 'pointer' : 'not-allowed',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  opacity: editorTitle.trim() && saveStatus !== 'saving' ? 1 : 0.5
+                }}
+              >
+                <Save size={18} />
+                <span>Update Draft</span>
+              </button>
+              
+              <button
+                onClick={handlePublish}
+                disabled={!editorTitle.trim() || saveStatus === 'saving'}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: editorTitle.trim() && saveStatus !== 'saving' ? '#2563eb' : '#9ca3af',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: editorTitle.trim() && saveStatus !== 'saving' ? 'pointer' : 'not-allowed',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  boxShadow: editorTitle.trim() && saveStatus !== 'saving' ? '0 1px 2px 0 rgba(0, 0, 0, 0.05)' : 'none'
+                }}
+              >
+                <Send size={18} />
+                <span>Update & Publish</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* Hidden file input for image upload */}
+      {/* Hidden File Input */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg"
         onChange={handleImageUpload}
         style={{ display: 'none' }}
       />
 
       {/* Link Modal */}
       {showLinkModal && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 50 
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50
         }}>
           <div style={{ 
-                backgroundColor: 'white', 
-                borderRadius: '0.75rem', 
-                padding: '2.5rem', 
-                margin: '1.5rem',
-                maxWidth: '480px',
-                width: '90%',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-                }}>
-
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1.5rem', margin: 0, color: '#111827' }}>Add Link</h3>
+            backgroundColor: 'white', 
+            borderRadius: '0.5rem', 
+            padding: '2rem',
+            margin: '1.5rem',
+            maxWidth: '450px',
+            width: '90%'
+          }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+              Add Link
+            </h3>
             
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.75rem' }}>
                 Link Text (optional)
               </label>
               <input
                 type="text"
+                placeholder="Display text for the link"
                 value={linkText}
                 onChange={(e) => setLinkText(e.target.value)}
-                placeholder="Display text for the link"
                 style={{
                   width: '100%',
                   padding: '0.875rem 1rem',
                   border: '1px solid #d1d5db',
                   borderRadius: '0.5rem',
-                  fontSize: '0.875rem',
-                  transition: 'border-color 0.2s ease-in-out',
-                  outline: 'none',
+                  fontSize: '0.875rem'
                 }}
               />
             </div>
-
-            <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.75rem' }}>
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.75rem' }}>
                 URL
               </label>
               <input
                 type="url"
+                placeholder="https://example.com"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder="https://example.com"
                 style={{
                   width: '100%',
                   padding: '0.875rem 1rem',
                   border: '1px solid #d1d5db',
                   borderRadius: '0.5rem',
-                  fontSize: '0.875rem',
-                  transition: 'border-color 0.2s ease-in-out',
-                  outline: 'none'
+                  fontSize: '0.875rem'
                 }}
-                autoFocus
               />
             </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem' }}>
+            
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
               <button
-                onClick={() => {
-                  setShowLinkModal(false);
-                  setLinkText('');
-                  setLinkUrl('');
-                  savedSelectionRef.current = null;
-                  contentRef.current?.focus();
-                }}
+                onClick={() => setShowLinkModal(false)}
                 style={{
                   padding: '0.75rem 1.5rem',
-                  color: '#6b7280',
                   backgroundColor: '#f9fafb',
+                  color: '#374151',
                   border: '1px solid #d1d5db',
                   borderRadius: '0.5rem',
                   cursor: 'pointer',
@@ -599,19 +824,19 @@ const Editor = ({
               >
                 Cancel
               </button>
+              
               <button
                 onClick={insertLink}
                 disabled={!linkUrl}
                 style={{
                   padding: '0.75rem 1.5rem',
-                  backgroundColor: linkUrl ? '#2563eb' : '#e5e7eb',
-                  color: linkUrl ? 'white' : '#9ca3af',
+                  backgroundColor: linkUrl ? '#2563eb' : '#9ca3af',
+                  color: 'white',
                   border: 'none',
                   borderRadius: '0.5rem',
                   cursor: linkUrl ? 'pointer' : 'not-allowed',
                   fontSize: '0.875rem',
-                  fontWeight: '600',
-                  boxShadow: linkUrl ? '0 1px 2px 0 rgba(0, 0, 0, 0.05)' : 'none'
+                  fontWeight: '600'
                 }}
               >
                 Add Link
@@ -623,160 +848,115 @@ const Editor = ({
 
       {/* Image Size Modal */}
       {showImageSizeModal && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 50 
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50
         }}>
-          <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', width: '20rem', maxWidth: '90vw', margin: '1rem' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', margin: 0 }}>Resize Image</h3>
+          <div style={{ 
+            backgroundColor: 'white', 
+            borderRadius: '0.5rem', 
+            padding: '1.5rem',
+            margin: '1rem'
+          }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+              Choose Image Size
+            </h3>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <button
-                onClick={() => resizeImage('small')}
-                style={{
-                  padding: '0.75rem',
-                  backgroundColor: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div style={{ fontWeight: '500' }}>Small (25%)</div>
-                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Compact size for inline content</div>
-              </button>
-              
-              <button
-                onClick={() => resizeImage('medium')}
-                style={{
-                  padding: '0.75rem',
-                  backgroundColor: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div style={{ fontWeight: '500' }}>Medium (50%)</div>
-                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Default size for most content</div>
-              </button>
-              
-              <button
-                onClick={() => resizeImage('large')}
-                style={{
-                  padding: '0.75rem',
-                  backgroundColor: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div style={{ fontWeight: '500' }}>Large (75%)</div>
-                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Prominent display size</div>
-              </button>
-              
-              <button
-                onClick={() => resizeImage('full')}
-                style={{
-                  padding: '0.75rem',
-                  backgroundColor: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div style={{ fontWeight: '500' }}>Full Width (100%)</div>
-                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Maximum width display</div>
-              </button>
-            </div>
-
-            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => {
-                  setShowImageSizeModal(false);
-                  setSelectedImage(null);
-                }}
-                style={{
-                  padding: '0.5rem 1rem',
-                  color: '#6b7280',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              {[25, 50, 75, 100].map(size => (
+                <button
+                  key={size}
+                  onClick={() => insertImage(size)}
+                  style={{
+                    padding: '0.75rem 1rem',
+                    backgroundColor: '#f3f4f6',
+                    color: '#374151',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {size}%
+                </button>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* CSS for contentEditable */}
-      <style jsx>{`
-        [contenteditable]:empty:before {
-          content: attr(data-placeholder);
-          color: #9CA3AF;
-          font-style: italic;
-        }
-
-        [contenteditable] blockquote {
-          border-left: 4px solid #E5E7EB;
-          padding-left: 1rem;
-          margin: 1rem 0;
-          font-style: italic;
-          color: #6B7280;
-        }
-
-        [contenteditable] ul {
-          margin: 1rem 0;
-          padding-left: 2rem;
-          list-style-type: disc;
-          text-align: left;
-        }
-
-        [contenteditable] ol {
-          margin: 1rem 0;
-          padding-left: 2rem;
-          list-style-type: decimal;
-          text-align: left;
-        }
-
-        [contenteditable] li {
-          margin: 0.5rem 0;
-          display: list-item;
-          text-align: left;
-        }
-
-        [contenteditable] a {
-          color: #2563eb;
-          text-decoration: underline;
-        }
-
-        .editor-image {
-          cursor: pointer;
-          transition: opacity 0.2s;
-        }
-
-        .editor-image:hover {
-          opacity: 0.8;
-        }
-
-        [contenteditable] p {
-          text-align: left;
-          margin: 0.5rem 0;
-        }
-
-        [contenteditable] div {
-          text-align: left;
-        }
-      `}</style>
+      {/* NEW: Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50
+        }}>
+          <div style={{ 
+            backgroundColor: 'white', 
+            borderRadius: '0.5rem', 
+            padding: '2rem',
+            margin: '1.5rem',
+            maxWidth: '400px',
+            width: '90%'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <Trash2 size={48} style={{ color: '#dc2626', margin: '0 auto 1rem' }} />
+              
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem', color: '#111827' }}>
+                Delete Post
+              </h3>
+              
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1.5rem' }}>
+                Are you sure you want to delete "{editorTitle || 'this post'}"? This action cannot be undone.
+              </p>
+              
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                <button
+                  onClick={cancelDelete}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    backgroundColor: '#f9fafb',
+                    color: '#374151',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  Cancel
+                </button>
+                
+                <button
+                  onClick={confirmDelete}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '600'
+                  }}
+                >
+                  Delete Post
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

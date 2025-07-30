@@ -1,18 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dashboard from './Dashboard';
 import Editor from './Editor';
 import Sidebar from './Sidebar';
-import { generatePostId, calculateWordCount } from '../utils/SharedUtils';
 
 const AppOrchestrator = () => {
-  // Global Application State
-  const [currentView, setCurrentView] = useState('dashboard');
-  const [editingPost, setEditingPost] = useState(null);
-  const [saveStatus, setSaveStatus] = useState('');
-  const [lastSaved, setLastSaved] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // FIXED: Load posts from localStorage on mount, fallback to sample data
+  // Load posts from localStorage on mount
   const [posts, setPosts] = useState(() => {
     const savedPosts = localStorage.getItem('blog-posts');
     if (savedPosts) {
@@ -21,177 +13,180 @@ const AppOrchestrator = () => {
     // Fallback to sample data if no saved posts
     return [
       {
-        id: "1",
-        title: "Reflections on Remote Work",
-        content: "Working from home has fundamentally changed how I think about productivity and work-life balance. The flexibility is incredible, but it requires discipline and clear boundaries between work and personal life.",
-        status: "published",
+        id: '1',
+        title: 'Reflections on Remote Work',
+        content: 'Working from home has fundamentally changed how I think about productivity and work-life balance. The flexibility is incredible, but it requires discipline and clear boundaries to be effective.',
+        status: 'published',
         isPublic: true,
-        createdAt: "2025-01-05T10:30:00",
-        updatedAt: "2025-01-05T14:20:00",
-        tags: ["work", "productivity", "remote"],
+        tags: ['work', 'productivity', 'remote'],
+        createdAt: '2025-01-05T10:00:00Z',
+        updatedAt: '2025-01-05T10:00:00Z',
+        publishedDate: '2025-01-05T10:00:00Z',
         wordCount: 850
       },
       {
-        id: "2",
-        title: "Learning to Cook Italian Food",
-        content: "Yesterday I attempted to make fresh pasta from scratch. The process was meditative, almost therapeutic. Mixing the flour with eggs, kneading the dough until it became silky smooth - there's something deeply satisfying about creating something delicious with your own hands.",
-        status: "draft",
-        isPublic: false,
-        createdAt: "2025-01-04T16:45:00",
-        updatedAt: "2025-01-04T17:30:00",
-        tags: ["cooking", "italy", "learning"],
+        id: '2',
+        title: 'Learning to Cook Italian Food',
+        content: 'Yesterday I attempted to make fresh pasta from scratch. The process was meditative, almost therapeutic. Mixing the flour with eggs, kneading the dough until it became silky smooth.',
+        status: 'published',
+        isPublic: true,
+        tags: ['cooking', 'italy', 'learning'],
+        createdAt: '2025-01-04T15:30:00Z',
+        updatedAt: '2025-01-04T15:30:00Z',
+        publishedDate: '2025-01-04T15:30:00Z',
         wordCount: 420
       },
       {
-        id: "3",
-        title: "Morning Thoughts on Creativity",
-        content: "Creativity isn't about waiting for inspiration to strike. It's about showing up consistently and creating the conditions for ideas to emerge. The best creative work happens when we establish routines and remove friction from the creative process.",
-        status: "published",
+        id: '3',
+        title: 'Morning Thoughts on Creativity',
+        content: 'Creativity isn\'t about waiting for inspiration to strike. It\'s about showing up consistently and creating the conditions for ideas to emerge. The best creative work happens when we establish routines.',
+        status: 'published',
         isPublic: true,
-        createdAt: "2025-01-03T08:15:00",
-        updatedAt: "2025-01-03T08:45:00",
-        tags: ["creativity", "writing", "morning"],
+        tags: ['creativity', 'writing', 'morning'],
+        createdAt: '2025-01-03T08:00:00Z',
+        updatedAt: '2025-01-03T08:00:00Z',
+        publishedDate: '2025-01-03T08:00:00Z',
         wordCount: 650
       }
     ];
   });
 
-  // ADDED: Save posts to localStorage whenever posts state changes
+  // Save posts to localStorage whenever posts change
   useEffect(() => {
     localStorage.setItem('blog-posts', JSON.stringify(posts));
     console.log('📦 Posts saved to localStorage:', posts.length, 'posts');
   }, [posts]);
 
-  // Navigation Functions
-  const handleNewPost = useCallback(() => {
-    console.log('🆕 Navigation: Dashboard → Editor (New Post)');
-    setEditingPost(null);
-    setCurrentView('editor');
-  }, []);
+  // App state
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [editingPost, setEditingPost] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('');
+  const [lastSaved, setLastSaved] = useState(null);
 
-  const handleEditPost = useCallback((post) => {
-    console.log('✏️ Navigation: Dashboard → Editor (Edit Post)', post.title);
+  // Navigation functions
+  const handleNewPost = () => {
+    const newPost = {
+      id: Date.now().toString(),
+      title: '',
+      content: '',
+      status: 'draft',
+      isPublic: false,
+      tags: [], // Initialize with empty tags array
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      publishedDate: null,
+      wordCount: 0
+    };
+    setEditingPost(newPost);
+    setCurrentView('editor');
+  };
+
+  const handleEditPost = (post) => {
     setEditingPost(post);
     setCurrentView('editor');
-  }, []);
+  };
 
-  const handleBackToDashboard = useCallback(() => {
-    console.log('🔙 Navigation: Editor → Dashboard');
+  const handleBackToDashboard = () => {
     setCurrentView('dashboard');
     setEditingPost(null);
     setSaveStatus('');
-  }, []);
+    setLastSaved(null);
+  };
 
-  // Save Operations - FIXED: These match exactly what Editor.jsx expects
-  const handleSaveDraft = useCallback((postData) => {
-    console.log('💾 Save Operation: Save as Draft');
+  // Save functions
+  const handleSaveDraft = (postData) => {
     setSaveStatus('saving');
-
+    
     setTimeout(() => {
       const now = new Date().toISOString();
       
-      if (editingPost) {
+      if (editingPost.id && posts.find(p => p.id === editingPost.id)) {
         // Update existing post
-        const updatedPost = {
-          ...editingPost,
-          title: postData.title,
-          content: postData.content,
-          status: 'draft',
-          isPublic: false,
-          updatedAt: now,
-          wordCount: postData.wordCount
-        };
-
-        setPosts(posts.map(p => p.id === editingPost.id ? updatedPost : p));
-        setEditingPost(updatedPost);
-        console.log('✅ Updated existing post as draft');
+        setPosts(posts.map(post => 
+          post.id === editingPost.id 
+            ? { 
+                ...post, 
+                ...postData, 
+                status: 'draft',
+                updatedAt: now
+              }
+            : post
+        ));
       } else {
-        // Create new post
+        // Add new post
         const newPost = {
-          id: generatePostId(),
-          title: postData.title,
-          content: postData.content,
+          ...editingPost,
+          ...postData,
           status: 'draft',
-          isPublic: false,
-          createdAt: now,
-          updatedAt: now,
-          tags: [], // TODO: Extract tags from content
-          wordCount: postData.wordCount
+          updatedAt: now
         };
-
-        setPosts([newPost, ...posts]);
+        setPosts([...posts, newPost]);
         setEditingPost(newPost);
-        console.log('✅ Created new post as draft');
       }
-
-      setLastSaved(new Date());
-      setSaveStatus('saved');
       
-      // Clear save status after 3 seconds
-      setTimeout(() => setSaveStatus(''), 3000);
+      setSaveStatus('saved');
+      setLastSaved(new Date());
+      
+      setTimeout(() => setSaveStatus(''), 2000);
     }, 500);
-  }, [editingPost, posts]);
+  };
 
-  const handlePublish = useCallback((postData) => {
-    console.log('🚀 Save Operation: Publish');
+  const handlePublish = (postData) => {
     setSaveStatus('saving');
-
+    
     setTimeout(() => {
       const now = new Date().toISOString();
       
-      if (editingPost) {
-        // Update existing post as published
-        const publishedPost = {
-          ...editingPost,
-          title: postData.title,
-          content: postData.content,
-          status: 'published',
-          isPublic: true,
-          updatedAt: now,
-          publishedDate: now, // ADDED: Track when published
-          wordCount: postData.wordCount
-        };
-
-        setPosts(posts.map(p => p.id === editingPost.id ? publishedPost : p));
-        console.log('✅ Updated existing post as published');
+      if (editingPost.id && posts.find(p => p.id === editingPost.id)) {
+        // Update existing post
+        setPosts(posts.map(post => 
+          post.id === editingPost.id 
+            ? { 
+                ...post, 
+                ...postData, 
+                status: 'published',
+                isPublic: true,
+                updatedAt: now,
+                publishedDate: now
+              }
+            : post
+        ));
       } else {
-        // Create new post as published
+        // Add new post
         const newPost = {
-          id: generatePostId(),
-          title: postData.title,
-          content: postData.content,
+          ...editingPost,
+          ...postData,
           status: 'published',
           isPublic: true,
-          createdAt: now,
           updatedAt: now,
-          publishedDate: now, // ADDED: Track when published
-          tags: [], // TODO: Extract tags from content
-          wordCount: postData.wordCount
+          publishedDate: now
         };
-
-        setPosts([newPost, ...posts]);
-        console.log('✅ Created new post as published');
+        setPosts([...posts, newPost]);
+        setEditingPost(newPost);
       }
-
-      setSaveStatus('saved');
       
-      // Return to dashboard after publishing
-      setTimeout(() => {
-        setCurrentView('dashboard');
-        setEditingPost(null);
-        setSaveStatus('');
-      }, 1000);
+      setSaveStatus('saved');
+      setLastSaved(new Date());
+      
+      setTimeout(() => setSaveStatus(''), 2000);
     }, 500);
-  }, [editingPost, posts]);
+  };
 
-  // Sidebar Functions
-  const handlePostSelect = useCallback((post) => {
-    handleEditPost(post);
-  }, [handleEditPost]);
+  // NEW: Delete function
+  const handleDeletePost = (postId) => {
+    // Remove post from posts array
+    setPosts(posts.filter(post => post.id !== postId));
+    
+    // Return to dashboard
+    handleBackToDashboard();
+    
+    console.log('🗑️ Post deleted:', postId);
+  };
 
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen(!sidebarOpen);
-  }, [sidebarOpen]);
+  // Export function for PublishedBlog component
+  const getPublishedPostsForBlog = () => {
+    return posts.filter(post => post.status === 'published');
+  };
 
   // Render current view
   const renderCurrentView = () => {
@@ -203,6 +198,7 @@ const AppOrchestrator = () => {
             onSave={handleSaveDraft}
             onPublish={handlePublish}
             onCancel={handleBackToDashboard}
+            onDelete={handleDeletePost} // NEW: Pass delete handler
             saveStatus={saveStatus}
             lastSaved={lastSaved}
           />
@@ -220,48 +216,23 @@ const AppOrchestrator = () => {
   };
 
   return (
-    <div style={{ position: 'relative' }}>
-      {/* Sidebar */}
-      <Sidebar
-        posts={posts}
-        onPostSelect={handlePostSelect}
-        selectedPostId={editingPost?.id}
-        isOpen={sidebarOpen}
-        onToggle={toggleSidebar}
-      />
-
-      {/* Main Content */}
-      <div style={{ 
-        marginLeft: sidebarOpen ? '20rem' : '0',
-        transition: 'margin-left 0.3s ease',
-        minHeight: '100vh'
-      }}>
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <Sidebar />
+      <main style={{ flex: 1 }}>
         {renderCurrentView()}
-      </div>
-
-      {/* Sidebar Overlay for mobile */}
-      {sidebarOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 15
-          }}
-          onClick={toggleSidebar}
-        />
-      )}
+      </main>
     </div>
   );
 };
 
-// Export function for published blog - UPDATED to read from localStorage
-export const getPublishedPostsForBlog = () => {
+// Export the function for PublishedBlog component
+export const getPublishedPosts = () => {
   const savedPosts = localStorage.getItem('blog-posts');
-  if (!savedPosts) return [];
-  return JSON.parse(savedPosts)
-    .filter(post => post.status === 'published')
-    .sort((a, b) => new Date(b.publishedDate || b.updatedAt) - new Date(a.publishedDate || a.updatedAt));
+  if (savedPosts) {
+    const posts = JSON.parse(savedPosts);
+    return posts.filter(post => post.status === 'published');
+  }
+  return [];
 };
 
 export default AppOrchestrator;
