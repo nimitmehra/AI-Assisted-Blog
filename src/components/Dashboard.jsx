@@ -28,6 +28,11 @@ const Dashboard = ({ posts = [], onEditPost, onNewPost }) => {
 
   const counts = getFilterCounts();
 
+  // ADDED: Simple function to navigate to blog view
+  const handleViewBlog = () => {
+    window.open('/', '_blank');
+  };
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
       <header style={{ 
@@ -50,23 +55,48 @@ const Dashboard = ({ posts = [], onEditPost, onNewPost }) => {
               {posts.length} entries
             </span>
           </div>
-          <button
-            onClick={onNewPost}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.5rem 1rem',
-              backgroundColor: '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.5rem',
-              cursor: 'pointer'
-            }}
-          >
-            <Plus size={20} />
-            <span>New Post</span>
-          </button>
+          
+          {/* ADDED: Button container with both View Blog and New Post buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              onClick={handleViewBlog}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem 1rem',
+                backgroundColor: '#f3f4f6',
+                color: '#374151',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '500'
+              }}
+              title="View your published blog"
+            >
+              <Eye size={18} />
+              <span>View Blog</span>
+            </button>
+            
+            <button
+              onClick={onNewPost}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem 1rem',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.5rem',
+                cursor: 'pointer'
+              }}
+            >
+              <Plus size={20} />
+              <span>New Post</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -164,7 +194,6 @@ const Dashboard = ({ posts = [], onEditPost, onNewPost }) => {
                     </div>
 
                     <p style={{ color: '#6b7280', marginBottom: '0.75rem', marginRight: '1rem', textAlign: 'left'}}>
-
                       {stripHtmlTags(post.content).substring(0, 150)}...
                     </p>
 
@@ -223,3 +252,4 @@ const Dashboard = ({ posts = [], onEditPost, onNewPost }) => {
 };
 
 export default Dashboard;
+

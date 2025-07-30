@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Dashboard from './Dashboard';
 import Editor from './Editor';
 import Sidebar from './Sidebar';
@@ -12,42 +12,55 @@ const AppOrchestrator = () => {
   const [lastSaved, setLastSaved] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Posts State - Initialize with sample data
-  const [posts, setPosts] = useState([
-    {
-      id: "1",
-      title: "Reflections on Remote Work",
-      content: "Working from home has fundamentally changed how I think about productivity and work-life balance. The flexibility is incredible, but it requires discipline and clear boundaries between work and personal life.",
-      status: "published",
-      isPublic: true,
-      createdAt: "2025-01-05T10:30:00",
-      updatedAt: "2025-01-05T14:20:00",
-      tags: ["work", "productivity", "remote"],
-      wordCount: 850
-    },
-    {
-      id: "2",
-      title: "Learning to Cook Italian Food",
-      content: "Yesterday I attempted to make fresh pasta from scratch. The process was meditative, almost therapeutic. Mixing the flour with eggs, kneading the dough until it became silky smooth - there's something deeply satisfying about creating something delicious with your own hands.",
-      status: "draft",
-      isPublic: false,
-      createdAt: "2025-01-04T16:45:00",
-      updatedAt: "2025-01-04T17:30:00",
-      tags: ["cooking", "italy", "learning"],
-      wordCount: 420
-    },
-    {
-      id: "3",
-      title: "Morning Thoughts on Creativity",
-      content: "Creativity isn't about waiting for inspiration to strike. It's about showing up consistently and creating the conditions for ideas to emerge. The best creative work happens when we establish routines and remove friction from the creative process.",
-      status: "published",
-      isPublic: true,
-      createdAt: "2025-01-03T08:15:00",
-      updatedAt: "2025-01-03T08:45:00",
-      tags: ["creativity", "writing", "morning"],
-      wordCount: 650
+  // FIXED: Load posts from localStorage on mount, fallback to sample data
+  const [posts, setPosts] = useState(() => {
+    const savedPosts = localStorage.getItem('blog-posts');
+    if (savedPosts) {
+      return JSON.parse(savedPosts);
     }
-  ]);
+    // Fallback to sample data if no saved posts
+    return [
+      {
+        id: "1",
+        title: "Reflections on Remote Work",
+        content: "Working from home has fundamentally changed how I think about productivity and work-life balance. The flexibility is incredible, but it requires discipline and clear boundaries between work and personal life.",
+        status: "published",
+        isPublic: true,
+        createdAt: "2025-01-05T10:30:00",
+        updatedAt: "2025-01-05T14:20:00",
+        tags: ["work", "productivity", "remote"],
+        wordCount: 850
+      },
+      {
+        id: "2",
+        title: "Learning to Cook Italian Food",
+        content: "Yesterday I attempted to make fresh pasta from scratch. The process was meditative, almost therapeutic. Mixing the flour with eggs, kneading the dough until it became silky smooth - there's something deeply satisfying about creating something delicious with your own hands.",
+        status: "draft",
+        isPublic: false,
+        createdAt: "2025-01-04T16:45:00",
+        updatedAt: "2025-01-04T17:30:00",
+        tags: ["cooking", "italy", "learning"],
+        wordCount: 420
+      },
+      {
+        id: "3",
+        title: "Morning Thoughts on Creativity",
+        content: "Creativity isn't about waiting for inspiration to strike. It's about showing up consistently and creating the conditions for ideas to emerge. The best creative work happens when we establish routines and remove friction from the creative process.",
+        status: "published",
+        isPublic: true,
+        createdAt: "2025-01-03T08:15:00",
+        updatedAt: "2025-01-03T08:45:00",
+        tags: ["creativity", "writing", "morning"],
+        wordCount: 650
+      }
+    ];
+  });
+
+  // ADDED: Save posts to localStorage whenever posts state changes
+  useEffect(() => {
+    localStorage.setItem('blog-posts', JSON.stringify(posts));
+    console.log('📦 Posts saved to localStorage:', posts.length, 'posts');
+  }, [posts]);
 
   // Navigation Functions
   const handleNewPost = useCallback(() => {
@@ -69,7 +82,7 @@ const AppOrchestrator = () => {
     setSaveStatus('');
   }, []);
 
-  // Save Operations
+  // Save Operations - FIXED: These match exactly what Editor.jsx expects
   const handleSaveDraft = useCallback((postData) => {
     console.log('💾 Save Operation: Save as Draft');
     setSaveStatus('saving');
@@ -135,6 +148,7 @@ const AppOrchestrator = () => {
           status: 'published',
           isPublic: true,
           updatedAt: now,
+          publishedDate: now, // ADDED: Track when published
           wordCount: postData.wordCount
         };
 
@@ -150,6 +164,7 @@ const AppOrchestrator = () => {
           isPublic: true,
           createdAt: now,
           updatedAt: now,
+          publishedDate: now, // ADDED: Track when published
           tags: [], // TODO: Extract tags from content
           wordCount: postData.wordCount
         };
@@ -240,4 +255,14 @@ const AppOrchestrator = () => {
   );
 };
 
+// Export function for published blog - UPDATED to read from localStorage
+export const getPublishedPostsForBlog = () => {
+  const savedPosts = localStorage.getItem('blog-posts');
+  if (!savedPosts) return [];
+  return JSON.parse(savedPosts)
+    .filter(post => post.status === 'published')
+    .sort((a, b) => new Date(b.publishedDate || b.updatedAt) - new Date(a.publishedDate || a.updatedAt));
+};
+
 export default AppOrchestrator;
+
